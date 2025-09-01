@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  db:
+    image: bitnami/mariadb:11
+    container_name: laravel_db
+    restart: unless-stopped
+    environment:
+      - MARIADB_ROOT_PASSWORD=root
+      - MARIADB_DATABASE=laravel
+      - MARIADB_USER=laravel
+      - MARIADB_PASSWORD=laravel
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - db_data:/bitnami/mariadb
+    networks:
+      - laravel_net
+
+  laravel:
+    image: bitnami/laravel:10
+    container_name: laravel_app
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_USERNAME=laravel
+      - DB_PASSWORD=laravel
+      - DB_DATABASE=laravel
+      # Opcional: APP_ENV=local APP_DEBUG=true APP_URL=http://localhost:8000
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./:/app
+      - laravel_vendor:/app/vendor
+    command: >
+      bash -c "\n        if [ ! -f .env ]; then \n          echo 'Copiando .env.example -> .env'; cp .env.example .env || true; \n        fi; \n        php artisan config:clear || true; \n        php artisan key:generate --force || true; \n        echo 'Ejecutando migraciones'; \n        php artisan migrate --force || (echo 'Primer intento de migración falló, reintentando en 8s'; sleep 8; php artisan migrate --force || true); \n        echo 'Iniciando servidor'; \n        php artisan serve --host=0.0.0.0 --port=8000 \n      "
+    networks:
+      - laravel_net
+
+  # Servicio opcional para administrar DB (descomenta si lo deseas)
+  # phpmyadmin:
+  #   image: phpmyadmin/phpmyadmin:5
+  #   container_name: pma
+  #   restart: unless-stopped
+  #   environment:
+  #     - PMA_HOST=db
+  #     - PMA_USER=laravel
+  #     - PMA_PASSWORD=laravel
+  #   ports:
+  #     - "8080:80"
+  #   depends_on:
+  #     - db
+  #   networks:
+  #     - laravel_net
+
+networks:
+  laravel_net:
+    driver: bridge
+
+volumes:
+  db_data:
+  laravel_vendor:
