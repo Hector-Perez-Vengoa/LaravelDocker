@@ -2,21 +2,24 @@ version: '3.8'
 
 services:
   db:
-    image: bitnami/mariadb:11
+    image: bitnami/mysql:8.4
     container_name: laravel_db
     restart: unless-stopped
     environment:
-      - MARIADB_ROOT_PASSWORD=root
-      - MARIADB_DATABASE=laravel
-      - MARIADB_USER=laravel
-      - MARIADB_PASSWORD=laravel
+      # NOTA: Cambia estas credenciales en producción. Puedes moverlas a un archivo .env.docker
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-root}
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-laravel}
+      - MYSQL_USER=${MYSQL_USER:-laravel}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-laravel}
+      # Descomentar si quieres permitir contraseña vacía en desarrollo
+      # - ALLOW_EMPTY_PASSWORD=yes
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 6
     volumes:
-      - db_data:/bitnami/mariadb
+      - db_data:/bitnami/mysql
     networks:
       - laravel_net
 
