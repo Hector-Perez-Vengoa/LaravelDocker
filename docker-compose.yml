@@ -41,8 +41,18 @@ services:
     volumes:
       - ./:/app
       - laravel_vendor:/app/vendor
-    command: >
-      bash -c "\n        if [ ! -f .env ]; then \n          echo 'Copiando .env.example -> .env'; cp .env.example .env || true; \n        fi; \n        php artisan config:clear || true; \n        php artisan key:generate --force || true; \n        echo 'Ejecutando migraciones'; \n        php artisan migrate --force || (echo 'Primer intento de migración falló, reintentando en 8s'; sleep 8; php artisan migrate --force || true); \n        echo 'Iniciando servidor'; \n        php artisan serve --host=0.0.0.0 --port=8000 \n      "
+    command: |
+      bash -lc '
+        if [ ! -f .env ]; then
+          echo "Copiando .env.example -> .env"; cp .env.example .env || true
+        fi
+        php artisan config:clear || true
+        php artisan key:generate --force || true
+        echo "Ejecutando migraciones"
+        php artisan migrate --force || (echo "Primer intento de migración falló, reintentando en 8s"; sleep 8; php artisan migrate --force || true)
+        echo "Iniciando servidor en 0.0.0.0:8000"
+        php artisan serve --host=0.0.0.0 --port=8000
+      '
     networks:
       - laravel_net
 
