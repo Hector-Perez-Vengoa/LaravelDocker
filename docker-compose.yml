@@ -41,18 +41,40 @@ services:
     volumes:
       - ./:/app
       - laravel_vendor:/app/vendor
-    command: |
-      bash -lc '
+    command:
+      - bash
+      - -c
+      - |
+        set -eo pipefail
+        echo "[Entrypoint] Iniciando script de preparación de Laravel"
         if [ ! -f .env ]; then
-          echo "Copiando .env.example -> .env"; cp .env.example .env || true
+          if [ -f .env.example ]; then
+            echo "Copiando .env.example -> .env"; cp .env.example .env || true
+          else
+            echo "ADVERTENCIA: .env.example no existe, se creará uno mínimo";
+            printf '%s\n' \
+              'APP_KEY=' \
+              'APP_ENV=local' \
+              'APP_DEBUG=true' \
+              'APP_URL=http://localhost:8000' \
+              'LOG_CHANNEL=stack' \
+              'DB_CONNECTION=mysql' \
+              'DB_HOST=db' \
+              'DB_PORT=3306' \
+              'DB_DATABASE=laravel' \
+              'DB_USERNAME=laravel' \
+              'DB_PASSWORD=laravel' \
+              > .env
+          fi
         fi
         php artisan config:clear || true
         php artisan key:generate --force || true
-        echo "Ejecutando migraciones"
-        php artisan migrate --force || (echo "Primer intento de migración falló, reintentando en 8s"; sleep 8; php artisan migrate --force || true)
-        echo "Iniciando servidor en 0.0.0.0:8000"
-        php artisan serve --host=0.0.0.0 --port=8000
-      '
+        echo "Ejecutando migraciones";
+        if ! php artisan migrate --force; then
+          echo "Migraciones fallaron, reintentando en 8s"; sleep 8; php artisan migrate --force || echo "Segundo intento también falló (continuando)";
+        fi
+        echo "Lanzando servidor en 0.0.0.0:8000";
+        exec php artisan serve --host=0.0.0.0 --port=8000
     networks:
       - laravel_net
 
