@@ -1,5 +1,4 @@
-version: '3.8'
-
+# Formato Compose conforme a la especificación actual (sin clave 'version')
 services:
   db:
     image: bitnami/mysql:8.4
