@@ -16,6 +16,36 @@ local_mode() {
   echo "==> Modo local (sin daemon Docker) habilitado"
   command -v php >/dev/null 2>&1 || { echo "[ERROR] PHP no está instalado en este contenedor." >&2; exit 1; }
   command -v composer >/dev/null 2>&1 || { echo "[ERROR] Composer no está instalado en este contenedor." >&2; exit 1; }
+  echo "==> Verificando extensiones PHP requeridas"
+  REQUIRED_EXT=(dom mbstring curl zip sqlite3)
+  DECLARED_PKGS=()
+  for EXT in "${REQUIRED_EXT[@]}"; do
+    if ! php -d detect_unicode=0 -r "exit(extension_loaded('$EXT')?0:1);"; then
+      case "$EXT" in
+        dom) DECLARED_PKGS+=(php-xml);; # dom viene en php-xml
+        sqlite3) DECLARED_PKGS+=(php-sqlite3);;
+        mbstring) DECLARED_PKGS+=(php-mbstring);;
+        curl) DECLARED_PKGS+=(php-curl);;
+        zip) DECLARED_PKGS+=(php-zip);;
+      esac
+    fi
+  done
+  if [ ${#DECLARED_PKGS[@]} -gt 0 ]; then
+    echo "Faltan extensiones: ${DECLARED_PKGS[*]}"
+    if command -v apt-get >/dev/null 2>&1; then
+      if [ "$(id -u)" != "0" ]; then
+        echo "[WARN] No eres root; instala manualmente: sudo apt-get update && sudo apt-get install -y ${DECLARED_PKGS[*]}" >&2
+      else
+        echo "==> Instalando paquetes faltantes vía apt-get"
+        apt-get update -y >/dev/null 2>&1 || true
+        apt-get install -y ${DECLARED_PKGS[*]} || {
+          echo "[WARN] No se pudieron instalar todas las extensiones automáticamente." >&2
+        }
+      fi
+    else
+      echo "[INFO] apt-get no disponible; instala extensiones manualmente para tu distro." >&2
+    fi
+  fi
   if [ ! -f .env ]; then
     cp .env.example .env
   fi
