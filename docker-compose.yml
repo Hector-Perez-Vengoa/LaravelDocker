@@ -1,69 +1,38 @@
-# Formato Compose conforme a la especificación actual (sin clave 'version')
+version: "3.9"
 services:
-  db:
-    image: bitnami/mysql:8.4
-    container_name: laravel_db
-    restart: unless-stopped
-    environment:
-      # NOTA: Cambia estas credenciales en producción. Puedes moverlas a un archivo .env.docker
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-root}
-      - MYSQL_DATABASE=${MYSQL_DATABASE:-laravel}
-      - MYSQL_USER=${MYSQL_USER:-laravel}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-laravel}
-      # Descomentar si quieres permitir contraseña vacía en desarrollo
-      # - ALLOW_EMPTY_PASSWORD=yes
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1"]
-      interval: 10s
-      timeout: 5s
-      retries: 6
-    volumes:
-      - db_data:/bitnami/mysql
-    networks:
-      - laravel_net
-
-  laravel:
-    image: bitnami/laravel:10
+  app:
+    build: .
     container_name: laravel_app
-    depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      - DB_HOST=db
-      - DB_PORT=3306
-      - DB_USERNAME=laravel
-      - DB_PASSWORD=laravel
-      - DB_DATABASE=laravel
-      # Opcional: APP_ENV=local APP_DEBUG=true APP_URL=http://localhost:8000
+    env_file: .env
     ports:
       - "8000:8000"
     volumes:
-      - ./:/app
-      - laravel_vendor:/app/vendor
-    command: ["bash", "-c", "chmod +x docker/start.sh || true; dos2unix docker/start.sh 2>/dev/null || true; ./docker/start.sh"]
-    networks:
-      - laravel_net
-
-  # Servicio opcional para administrar DB (descomenta si lo deseas)
-  # phpmyadmin:
-  #   image: phpmyadmin/phpmyadmin:5
-  #   container_name: pma
-  #   restart: unless-stopped
-  #   environment:
-  #     - PMA_HOST=db
-  #     - PMA_USER=laravel
-  #     - PMA_PASSWORD=laravel
-  #   ports:
-  #     - "8080:80"
-  #   depends_on:
-  #     - db
-  #   networks:
-  #     - laravel_net
-
-networks:
-  laravel_net:
-    driver: bridge
-
+      - ./:/var/www/html
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "php", "artisan", "about"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+  db:
+    image: mysql:8.0
+    container_name: laravel_db
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: laravel
+      MYSQL_USER: laravel
+      MYSQL_PASSWORD: secret
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    command: ["mysqld", "--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 volumes:
   db_data:
-  laravel_vendor:
